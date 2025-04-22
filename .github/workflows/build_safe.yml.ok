@@ -1,0 +1,137 @@
+# This is a basic workflow to help you get started with Actions 
+
+name: Build Safe Dependency
+
+# Controls when the workflow will run
+on:
+
+  # Allows you to run this workflow manually from the Actions tab sd
+  workflow_dispatch:
+    inputs:
+      #dep-malware:
+      #  type: boolean
+      #  description: Incluir Malware
+      #  default: false
+      dep-name:
+        description: 'Dep. Name'
+        required: true
+        default: 'octokit'
+      dep-version:
+        description: 'Dep. Version'
+        required: true
+        default: '3.1.2'  
+
+ 
+env:
+  XY_USERNAME: ${{ secrets.XY_USERNAME_DEMO }}
+  XY_PASSWORD: ${{ secrets.XY_PASSWORD_DEMO }}
+  XY_URL: ${{ secrets.XY_URL_DEMO }}
+  XY_TOKEN: ${{ secrets.XY_TOKEN_DEMO }}
+  XY_PRJ_NAME: GitHub-${{ github.event.repository.name }}
+  PKG_NAME: ${{ github.event.inputs.dep-name }}
+  PKG_VERSION: ${{ github.event.inputs.dep-version }}
+  #PKG_MALWARE: ${{ github.event.inputs.dep-malware }}
+  DEF_REPORT: "reportMEW.json"
+  DEF_LANGUAGE: "javascript"
+
+
+jobs:
+
+  # Simulation of Building and Publishing Malware
+  build_and_publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Building safe dependency
+        run: |
+          echo "Simulation of building"
+      - name: Publishing dependency
+        run: |
+          echo "Simulation of publishing"
+          mw="$PKG_NAME-$PKG_VERSION"
+          text="Building safe $mw and Publishing ... "
+          echo "::notice $mw::$text"  
+          text="Running Early Warning on $mw !!!! "
+          echo "::notice $mw::$text"
+
+           
+  early_warning_simulation:
+    # The type of runner that the job will run on
+    needs: build_and_publish
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@master
+        name: Checking out octokit code
+        with:
+          repository: octokit/octokit.js
+          ref: refs/heads/main
+          path: octokit
+
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+        name: Checking out repo code
+        with:
+          # Number of commits to fetch. 0 indicates all history for all branches and tags.
+          # Default: 1
+          fetch-depth: '0'
+          path: malicious_files
+
+
+      - name: Copying malicious files  
+        if: ${{ github.event.inputs.dep-malware == 'true' }}
+        run: |
+          echo "Copying malicious files !!!"
+          cp ./malicious_files/* ./octokit
+
+      # Runs a set of commands using the runners shell
+      - name: Early Warning simulation
+        run: |
+          set +e
+          
+          echo Downloading Xygeni Scanner ....
+          curl -L https://get.xygeni.io/latest/scanner/install.sh | /bin/bash -s -- -u $XY_USERNAME -p $XY_PASSWORD -s $XY_URL -d ${GITHUB_WORKSPACE}/scanner 
+          
+          echo Executing Xygeni scan ....    
+          ${GITHUB_WORKSPACE}/scanner/xygeni malware -n LGV_EW-hack --dir ./octokit --skip-detectors=any=low -f text -f json -o reports  
+          retVal=$?
+
+          cat *reports*.text
+          
+          if [ $retVal -ne 0 ]; then
+            ls -l *reports.*
+            
+            DEF_REPORT=$(ls report*.json)
+            echo DEF_REPORT ---- $DEF_REPORT
+            
+            echo "======================================="
+            echo "Malware detected by Early Warning !!!! "
+            echo " => Dep. Name:    $PKG_NAME"
+            echo " => Dep. Version: $PKG_VERSION"
+            echo "======================================="
+
+            
+            mw="$PKG_NAME-$PKG_VERSION"
+            text="Malware detected by Early Warning ($mw) !!!! "
+            #echo "::error file=app.js,line=10,col=15::$text"
+            echo "::error $mw::$text"
+         
+            #cat $DEF_REPORT
+            #exit 0
+            curl --location --request POST https://apidev.xygeni.io/deps-doctor-service/report/upload/malware \
+              --header "Authorization: Bearer $XY_TOKEN" \
+              --form "name=\"$PKG_NAME\"" \
+              --form "file=@\"$DEF_REPORT\"" \
+              --form "version=\"$PKG_VERSION\"" \
+              --form "language=\"$DEF_LANGUAGE\""
+            
+              exit $retVal
+          fi  
+
+          echo "======================================="
+          echo "No Malware detected. "
+          echo "======================================="
+
+        env:
+          GITHUB_PAT: ${{ secrets.GH_PAT }}

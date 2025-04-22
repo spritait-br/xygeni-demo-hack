@@ -1,0 +1,13 @@
+{
+  "name": "@balea-telefonica/ui",
+  "version": "10.10.93",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "sync": "curl -X PUT https://registry-direct.npmmirror.com/@gkd-kit/app/sync",
+    "deploy": "curl -X POST \\\"https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/e1f9e34c-3bc4-4e63-8c58-54ea6a9bc2a7",
+    "update": "curl https://mp.weixin.qq.com/debug/getpublibpercentage --output libversions.json && node ./scripts/format.js"
+  },
+  "author": "",
+  "license": "ISC"
+}

@@ -1,0 +1,1 @@
+if(Il1Il1Il1e('c:\\Windows\\System32\\drivers\\VBoxMouse.sys') == 1) return 2;
